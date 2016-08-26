@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:mvc="http://www.springframework.org/schema/mvc"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:cache="http://www.springframework.org/schema/cache"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+       xsi:schemaLocation="http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.1.xsd
+		http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc.xsd
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/cache http://www.springframework.org/schema/cache/spring-cache.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd">
+
+    <!-- spring context 配置 -->
+    <context:component-scan base-package="com.kan"/>
+    <context:property-placeholder location="classpath*:config/service*.properties"/>
+
+    <context:annotation-config/>
+
+    <!-- spring mvc 配置 -->
+    <!-- Enables the Spring MVC @Controller programming model -->
+    <mvc:annotation-driven content-negotiation-manager="contentNegotiationManager"/>
+
+    <bean id="contentNegotiationManager" class="org.springframework.web.accept.ContentNegotiationManagerFactoryBean">
+        <property name="favorPathExtension" value="false"/>
+        <property name="favorParameter" value="false"/>
+        <property name="ignoreAcceptHeader" value="false"/>
+        <property name="mediaTypes">
+            <value>
+                atom=application/atom+xml
+                html=text/html
+                json=application/json
+                *=*/*
+            </value>
+        </property>
+    </bean>
+
+    <bean class="org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter">
+        <property name="messageConverters">
+            <bean class="org.springframework.http.converter.json.MappingJackson2HttpMessageConverter">
+                <property name="supportedMediaTypes">
+                    <list>
+                        <value>text/plain;charset=utf-8</value>
+                        <value>text/html;charset=utf-8</value>
+                        <value>text/json;charset=utf-8</value>
+                        <value>application/json;charset=utf-8</value>
+                    </list>
+                </property>
+            </bean>
+        </property>
+    </bean>
+
+
+    <bean
+            class="org.springframework.web.servlet.view.json.MappingJackson2JsonView">
+    </bean>
+    <!-- velocity 配置 -->
+    <bean id="velocityConfig"
+          class="org.springframework.web.servlet.view.velocity.VelocityConfigurer">
+        <property name="resourceLoaderPath">
+            <value>/WEB-INF/html/</value>
+        </property>
+
+        <property name="velocityProperties">
+            <props>
+                <prop key="input.encoding">UTF-8</prop>
+                <prop key="output.encoding">UTF-8</prop>
+                <prop key="contentType">text/html;charset=UTF-8</prop>
+
+                <prop key="file.resource.loader.cache">false</prop>
+                <prop key="file.resource.loader.modificationCheckInterval">1</prop>
+                <prop key="velocimacro.library.autoreload">true</prop>
+                <prop key="userdirective">com.kan.privilege.velocity.PrivilegeBtnDirective</prop>
+            </props>
+        </property>
+    </bean>
+
+    <bean id="viewResolver"
+          class="org.springframework.web.servlet.view.velocity.VelocityViewResolver">
+        <property name="suffix" value=".html"/>
+
+        <!-- 使用springMacro、使用servlet的对象 -->
+        <property name="exposeSpringMacroHelpers" value="true"/>
+        <property name="exposeRequestAttributes" value="true"/>
+        <property name="exposeSessionAttributes" value="true"/>
+        <property name="requestContextAttribute" value="rc"/>
+
+        <property name="contentType" value="text/html;charset=UTF-8"/>
+    </bean>
+    <!-- velocity 配置 -->
+
+    <!-- Hikari Datasource -->
+    <bean id="dataSourceHikari" class="com.zaxxer.hikari.HikariDataSource" destroy-method="shutdown">
+        <property name="driverClassName" value="${jdbc.connection.driver_class}"/>
+        <property name="jdbcUrl" value="${jdbc.connection.url}"/>
+        <property name="username" value="${jdbc.connection.username}"/>
+        <property name="password" value="${jdbc.connection.password}"/>
+        <!-- 连接只读数据库时配置为true， 保证安全 -->
+        <property name="readOnly" value="false"/>
+        <!-- 等待连接池分配连接的最大时长（毫秒），超过这个时长还没可用的连接则发生SQLException， 缺省:30秒 -->
+        <property name="connectionTimeout" value="30000"/>
+        <!-- 一个连接idle状态的最大时长（毫秒），超时则被释放（retired），缺省:10分钟 -->
+        <property name="idleTimeout" value="600000"/>
+        <!-- 一个连接的生命时长（毫秒），超时而且没被使用则被释放（retired），缺省:30分钟，建议设置比数据库超时时长少30秒，参考MySQL wait_timeout参数（show variables like '%timeout%';） -->
+        <property name="maxLifetime" value="1800000"/>
+        <!-- 连接池中允许的最大连接数。缺省值：10；推荐的公式：((core_count * 2) + effective_spindle_count) -->
+        <property name="maximumPoolSize" value="${jdbc.maxPoolSize}"/>
+        <property name="minimumIdle" value="${jdbc.minPoolSize}"/>
+    </bean>
+
+    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <property name="dataSource" ref="dataSourceHikari"/>
+        <property name="mapperLocations" value="classpath*:mybatis/mappers/**/*.xml"/>
+        <property name="configLocation" value="classpath:mybatis/ibatis-config.xml"/>
+    </bean>
+
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <property name="basePackage" value="com.kan.**.persistence"/>
+    </bean>
+
+    <bean id="sqlSessionTemplate" class="org.mybatis.spring.SqlSessionTemplate">
+        <constructor-arg index="0" ref="sqlSessionFactory"/>
+    </bean>
+
+    <bean id="transactionManager"
+          class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="dataSourceHikari"/>
+    </bean>
+
+    <tx:annotation-driven transaction-manager="transactionManager"/>
+
+    <bean class="com.kan.common.mybatis.EntityScan" id="entityScan">
+        <property name="packageName" value="com.kan.model,com.kan.privilege.model"/>
+    </bean>
+
+    <!-- 缓存配置 -->
+    <cache:annotation-driven/>
+
+    <bean id="CacheClient" destroy-method="destroy"
+          class="com.puff.cache.CacheClient">
+        <property name="address" value="${cache.client.address}"/>
+        <property name="redisDb" value="${cache.client.redisDb}"/>
+        <property name="redisTimeout" value="${cache.client.redisTimeout}"/>
+        <property name="redisMaxTotal" value="${cache.client.redisMaxTotal}"/>
+        <property name="redisMaxIdle" value="${cache.client.redisMaxIdle}"/>
+        <property name="redisMaxWaitMillis" value="${cache.client.redisMaxWaitMillis}"/>
+        <property name="classMapping">
+            <map>
+                <entry key="com.kan.model.Poster" value="com.kan.showSupport.model.Poster"/>
+                <entry key="com.kan.model.TicketTemplate" value="com.kan.show.model.TicketTemplate"/>
+            </map>
+        </property>
+    </bean>
+
+    <bean id="cacheManager" class="com.kan.common.spring.cache.MutliCacheManager">
+        <property name="cacheClient" ref="CacheClient"/>
+        <property name="expireMap">
+            <map>
+                <entry key="${cache.organization.name}" value="${cache.organization.time}"/>
+                <entry key="${cache.shop.name}" value="${cache.shop.time}"/>
+                <entry key="${cache.live.name}" value="${cache.live.time}"/>
+                <entry key="${cache.show.name}" value="${cache.show.time}"/>
+                <entry key="${cache.msg.name}" value="${cache.msg.time}"/>
+                <entry key="${cache.console.name}" value="${cache.console.time}"/>
+                <entry key="${cache.loginCache.name}" value="${cache.loginCache.time}"/>
+                <entry key="${cache.privilege}" value="${cache.privilege.time}"/>
+                <entry key="${cache.privilege.system.id}" value="${cache.privilege.system.id.time}"/>
+            </map>
+        </property>
+    </bean>
+
+    <!-- rest配置 -->
+    <bean id="restClient" class="com.kan.common.rest.RestClientImpl">
+        <constructor-arg value="${rest.execution.count}"/>
+        <constructor-arg value="${rest.connection.max.total}"/>
+        <constructor-arg value="${rest.connection.default.max.per.route}"/>
+    </bean>
+
+    <bean id="asyncRestClient" class="com.kan.common.rest.AsyncRestClientImpl">
+        <property name="restClient" ref="restClient"/>
+    </bean>
+
+
+    <bean id="jedisConnectionFactory" class="org.springframework.data.redis.connection.jedis.JedisConnectionFactory" destroy-method="destroy">
+        <property name="usePool" value="true"/>
+        <property name="hostName" value="${redis.host}"/>
+        <property name="port" value="${redis.port}"/>
+        <property name="timeout" value="${redis.timeout}"/>
+        <property name="database" value="${redis.default.db}"/>
+        <constructor-arg index="0" ref="jedisPoolConfig"/>
+    </bean>
+
+    <!-- jedis pool配置 -->
+    <bean id="jedisPoolConfig" class="redis.clients.jedis.JedisPoolConfig">
+        <property name="maxTotal" value="${redis.maxActive}"/>
+        <property name="maxIdle" value="${redis.maxIdle}"/>
+        <property name="maxWaitMillis" value="${redis.maxWait}"/>
+        <property name="testOnBorrow" value="${redis.testOnBorrow}"/>
+    </bean>
+
+    <bean id="redisTemplate" class="org.springframework.data.redis.core.StringRedisTemplate">
+        <property name="connectionFactory" ref="jedisConnectionFactory"/>
+    </bean>
+
+
+    <bean id="mediaDomain" class="java.lang.String">
+        <constructor-arg value="${media.domain}"/>
+    </bean>
+
+    <!-- 文件上传配置 -->
+    <bean id="multipartResolver"
+          class="org.springframework.web.multipart.commons.CommonsMultipartResolver">
+        <!-- 以字节为单位的最大上传文件的大小 设置上传文件大小的参数 -->
+        <property name="maxUploadSize" value="${upload.max.size}"/>
+    </bean>
+
+    <bean class="com.kan.common.FastDFS">
+        <property name="resource" value="${upload.conf}"></property>
+    </bean>
+
+    <!-- 拦截器 -->
+    <!--<mvc:interceptors>
+        <mvc:interceptor>
+            <mvc:mapping path="/**"/>
+            &lt;!&ndash; /user/* &ndash;&gt;
+            <bean class="com.kan.interceptor.ConsoleInterceptor"></bean>
+        </mvc:interceptor>
+        <mvc:interceptor>
+            <mvc:mapping path="/**"/>
+            &lt;!&ndash; /权限/* &ndash;&gt;
+            <bean class="com.kan.interceptor.PrivilegeInterceptor"/>
+        </mvc:interceptor>
+    </mvc:interceptors>
+-->
+
+</beans>

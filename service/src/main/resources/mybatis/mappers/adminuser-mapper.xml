@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kan.persistence.AdminUserMapper">
+    <select id="getUserList" resultMap="com.kan.model.AdminUser">
+        select * from sys_admin_user where 1=1
+        <if test='username !="" and username !=null'>
+            and  username  LIKE "%"#{username}"%"
+        </if>
+        <if test='department !="" and department !=null'>
+            and department = #{department}
+        </if>
+        limit #{first},#{max}
+    </select>
+
+    <select id="getAdminUserList" resultMap="com.kan.model.AdminUser">
+        select * from sys_admin_user where status = 1
+    </select>
+
+    <select id="getUserCount" resultType="int">
+        select count(1) from sys_admin_user where 1=1
+        <if test='username !="" and username !=null'>
+            and  username  LIKE "%"#{username}"%"
+        </if>
+        <if test='department !="" and department !=null'>
+            and department = #{department}
+        </if>
+    </select>
+
+    <select id="getAssociationList" resultType="com.kan.vo.AdminUserVO">
+        SELECT
+            admin.username AS userName,
+            admin.id AS id,
+            admin.department,
+            admin.nick_name AS nickName,
+            u.user_id AS userId
+        FROM
+            sys_admin_user admin,
+            sys_user_association u
+        WHERE
+            admin.`status` = 1 AND
+            admin.id = u.admin_id;
+    </select>
+
+    <select id="getAdminUserForSend" resultType="com.kan.vo.TempUserVO">
+         SELECT
+            admin.nick_name AS nickName,
+            u.user_id AS userId
+        FROM
+            sys_admin_user admin,
+            sys_user_association u
+        WHERE
+            admin.`status` = 1 AND
+            admin.id = u.admin_id;
+    </select>
+
+    <select id="queryUserNotInGroup" resultMap="com.kan.model.AdminUser">
+        SELECT * FROM
+        sys_admin_user
+        WHERE id NOT IN
+        <foreach item="item" index="index" collection="userIds" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+    </select>
+</mapper>
